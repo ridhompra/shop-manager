@@ -1,0 +1,12 @@
+# AppConfig Settings
+HOST=0.0.0.0
+PORT=5000
+
+# DatabaseConfig Settings
+POSTGRES_URL=postgresql://user:password@localhost/dbname
+REDIS_URL=redis://localhost:6379/0
+
+# ShopeeClientConfig Settings
+SHOPEE_PARTNER_ID=your_partner_id
+SHOPEE_PARTNER_KEY=your_partner_key
+SHOPEE_SHOP_ID=your_shop_id

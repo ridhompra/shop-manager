@@ -1,0 +1,8 @@
+Flask==2.3.2
+Flask-SQLAlchemy==3.0.3
+# psycopg2==2.9.6
+redis==4.5.5
+requests==2.31.0
+python-dotenv==1.0.0
+Flask-Redis==0.4.0
+flask_jwt_extended
