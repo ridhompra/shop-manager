@@ -2,7 +2,7 @@ import os
 import hmac
 import hashlib
 import time
-from database.noSql.redis.configuration import RedisClient
+from domain.redis.configuration import RedisClient
 from config.database import RedisKey
 
 

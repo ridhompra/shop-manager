@@ -1,4 +1,4 @@
-from domain.shopee.shopee_client import ShopeeClient
+from domain.thirdParties.shopee.shopee_client import ShopeeClient
 
 class ShopService:
     def __init__(self):

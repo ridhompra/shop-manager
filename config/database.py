@@ -1,7 +1,7 @@
 import os
 
 class DatabaseConfig:
-    POSTGRES_URL = os.getenv("POSTGRES_URL", "postgresql://user:password@localhost/dbname")
+    POSTGRES_URL = os.getenv("POSTGRES_URL", "postgresql://user:password@localhost/db_bpay")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 class RedisKey:
