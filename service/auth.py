@@ -1,9 +1,10 @@
 from datetime import timedelta
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import check_password_hash
-from database.sql.sqlAlchemy.configuration import SessionLocal
-from database.sql.sqlAlchemy.model.user_model import User
+from domain.sqlAlchemy.configuration import SessionLocal
+from domain.sqlAlchemy.model.user_model import User
 from utils import utils
+
 
 jwt = JWTManager()
 

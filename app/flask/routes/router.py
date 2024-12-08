@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from domain.shopee.services.shop_service import ShopService
+from domain.thirdParties.shopee.services.shop_service import ShopService
 
 router = Blueprint("router", __name__)
 shop_service = ShopService()

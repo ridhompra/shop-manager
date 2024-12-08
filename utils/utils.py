@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 import re
+from typing import List, Any, Optional, Dict
 
 
 def setup_logger():
@@ -8,39 +9,59 @@ def setup_logger():
     logger = logging.getLogger("ShopeeIntegration")
     return logger
 
-def json_response(status_code, message, data=None, log_level="info"):
+def json_response(
+    status_code: int, 
+    message: str, 
+    data: Optional[List[Dict[str, Any]]] = None, 
+    log_level: str = "info", 
+    pagination: Optional[Dict[str, Any]] = None
+):
     """
     Generate a standard JSON response for API endpoints and log the response.
 
     :param status_code: HTTP status code to be returned.
     :param message: Message describing the response (e.g., success, error).
-    :param data: Data to be included in the response (optional).
-    :param logger: Logger instance to log the response (optional).
+    :param data: Data to be included in the response (optional, defaults to an empty array).
     :param log_level: Log level (e.g., 'info', 'warning', 'error').
-    :return: JSON response with status, message, and data.
+    :param pagination: Pagination information (optional, defaults to None).
+    :return: JSON response with status_code, message, and data as an array.
     """
-    # Default logger if not provided
+    # Default logger setup
     logger = logging.getLogger(__name__)
     now = datetime.now()
 
-    # Log the response at the specified log level
-    if log_level.lower() == "info":
-        logger.info(f"{now} -  Status Code: {status_code} - Message: {message} - Data: {data if data is not None else {}}")
-    elif log_level.lower() == "warning":
-        logger.warning(f"{now} - Status Code: {status_code} - Message: {message} - Data: {data if data is not None else {}}")
-    elif log_level.lower() == "error":
-        logger.error(f"{now} - Status Code: {status_code} - Message: {message} - Data: {data if data is not None else {}}")
-    else:
-        logger.debug(f"{now} - Status Code: {status_code} - Message: {message} - Data: {data if data is not None else {}}")
+    # Ensure data is always a list (array)
+    response_data = data if isinstance(data, list) else []
 
-    # Prepare the response
+    log_message = f"{now} - Status Code: {status_code} - Message: {message} - Data Count: {len(response_data)}"
+    if log_level.lower() == "info":
+        logger.info(log_message)
+    elif log_level.lower() == "warning":
+        logger.warning(log_message)
+    elif log_level.lower() == "error":
+        logger.error(log_message)
+    else:
+        logger.debug(log_message)
+
     response = {
         "status_code": status_code,
         "message": message,
-        "data": data if data is not None else {}
+        "data": response_data
     }
 
+    if pagination:
+        if isinstance(pagination, dict):
+            response["page"] = pagination.get("page", 1)
+            response["limit"] = pagination.get("limit", 10)
+            response["total"] = pagination.get("total", 0)
+            response["total_page"] = pagination.get("total_page", 0)
+            response["next"] = pagination.get("next", None)
+            response["prev"] = pagination.get("prev", None)
+        else:
+            logger.warning(f"Invalid pagination format. Expected a dictionary, got {type(pagination)}.")
+
     return response
+
 
 def validate_email(email: str) -> bool:
     """Validasi format email menggunakan regex."""

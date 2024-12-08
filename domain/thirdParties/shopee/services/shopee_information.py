@@ -1,10 +1,10 @@
 from config.shopee_client import ShopeeClientConfig
 from utils.utils import json_response, setup_logger
 import logging
-from database.noSql.redis.configuration import RedisClient
+from domain.redis.configuration import RedisClient
 from config.shopee_client import ShopeeClientConfig
 from config.database import RedisKey
-from domain.shopee.services.shop_service import ShopService
+from domain.thirdParties.shopee.services.shop_service import ShopService
 
 
 class ShopInformation(ShopService):
