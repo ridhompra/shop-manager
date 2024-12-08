@@ -97,9 +97,15 @@ class BaseRepository:
         query = self.db.query(self.model)
         
         if fields:
-            query = query.with_entities(*[getattr(self.model, field) for field in fields])
-        
+            valid_fields = [field for field in fields if hasattr(self.model, field)]
+            
+            if valid_fields:
+                query = query.with_entities(*[getattr(self.model, field) for field in valid_fields])
+            else:
+                raise ValueError(f"Invalid fields: {', '.join(fields)}")
+
         return query.filter(self.model.id == id).first()
+
 
     def delete(self, ids: List[int]):
         objs = self.get_by_ids(ids)

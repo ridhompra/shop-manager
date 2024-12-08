@@ -23,7 +23,7 @@ class ProductService:
                 filters['price'] = {"min": price, "max": 220}
             # if price:
             #     filters['price'] = ">",price # "price == 100"
-            products = self.product_repo.get_all(page=page, limit=limit, filters= filters, columns=["name", "price"])
+            products = self.product_repo.get_all(page=page, limit=limit, filters= filters, columns=["id","name", "price"])
             products_dict = [self.model.to_dict(product) for product in products]
             total_products = self.product_repo.count()
             total_pages = total_products // limit + (1 if total_products % limit != 0 else 0)
@@ -47,7 +47,15 @@ class ProductService:
 
 
     def get_product_by_id(self, product_id: int):
-        return self.product_repo.get_by_id(product_id)
+        try:
+            product = self.product_repo.get_by_id(product_id)
+            if product:
+                product_dict = self.model.to_dict(product)
+                return utils.json_response(200, "Get Detail Product Successfully!", [product_dict]) 
+            return utils.json_response(404, "Data Not Found", log_level="error")
+        except Exception as e:
+            logging.error(f"Error occurred while fetching product by id {product_id}: {str(e)}")
+            return utils.json_response(500, "Internal Server Error", log_level="error")
 
     def get_products_by_ids(self, product_ids: List[int]):
         return self.product_repo.get_by_ids(product_ids)

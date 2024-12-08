@@ -20,14 +20,12 @@ def get_all_products():
 
     products = product_service.get_all_products(page=page, limit=limit, name=name, price=price)
     
-    return jsonify(products)
+    return jsonify(products), products["status_code"]
 
 @product_router.route("/products/<int:product_id>", methods=["GET"])
 def get_product(product_id):
     product = product_service.get_product_by_id(product_id)
-    if product:
-        return jsonify(product.__dict__)
-    return jsonify({"message": "Product not found"}), 404
+    return jsonify(product), product["status_code"]
 
 @product_router.route("/products", methods=["PUT"])
 def update_products():
