@@ -1,31 +1,42 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, SessionTransaction
 from sqlalchemy import or_, and_
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Any, Tuple
 
 class BaseRepository:
     def __init__(self, model, db: Session):
         self.model = model
         self.db = db
 
-    def create(self, objs_in: List[Any]):
+    def create(self, objs_in: List[Dict[str, Any]]):
         """
-        Receives a list of model instances (already validated by model).
+        Receives a list of dictionaries and converts them to model instances
+        before adding them to the database.
         """
-        self.db.add_all(objs_in)
-        self.db.flush()  # Ensures data is prepared for commit
-        for obj in objs_in:
-            self.db.refresh(obj)
-        return objs_in
+        try:
+            # Convert dictionaries to model instances
+            model_instances = [self.model(**obj) for obj in objs_in]
 
+            # Add all model instances to the database
+            self.db.add_all(model_instances)
+            self.db.flush()  # Ensures data is prepared for commit
 
-    def get_all(self, page: int = 1, limit: int = 10, filters: Dict[str, Any] = None, or_filters: Dict[str, Any] = None, columns: list = None):
+            # Refresh instances to get their updated state (e.g., IDs)
+            for instance in model_instances:
+                self.db.refresh(instance)
+
+            return model_instances
+        except Exception as e:
+            raise ValueError(f"Error creating objects: {str(e)}")
+
+    def get_all(self, page: int = 1, limit: int = 10, filters: Dict[str, Any] = None, or_filters: Dict[str, Any] = None, columns: list = None, order_by: List[Tuple[str, str]] = None):
         """
-        Get all records with pagination, filtering, and specific column selection support.
+        Get all records with pagination, filtering, ordering, and specific column selection support.
         :param page: Page number (default is 1).
         :param limit: Number of records per page (default is 10).
         :param filters: A dictionary of filters (optional, applies AND conditions).
         :param or_filters: A dictionary of OR filters (optional).
         :param columns: List of columns to select (optional).
+        :param order_by: A list of tuples specifying column and direction (e.g., [("created_at", "DESC")]).
         :return: Paginated list of records.
         """
         query = self.db.query(self.model)
@@ -82,16 +93,35 @@ class BaseRepository:
             if or_conditions:
                 query = query.filter(or_(*or_conditions))
 
-        offset = (page - 1) * limit
+        # Apply order by if specified
+        if order_by:
+            for column, direction in order_by:
+                column_attr = getattr(self.model, column, None)
+                if column_attr is not None:
+                    if direction.upper() == "DESC":
+                        query = query.order_by(column_attr.desc())
+                    else:
+                        query = query.order_by(column_attr.asc())
 
+        # Pagination logic
+        offset = (page - 1) * limit
         records = query.offset(offset).limit(limit).all()
 
         return records
 
 
-
-    def get_by_ids(self, ids: list):
-        return self.db.query(self.model).filter(self.model.id.in_(ids)).all()
+    def get_by_ids(self, ids: list[str]):
+        try:
+            if not ids:
+                raise ValueError("IDs list cannot be empty.")
+            products = self.db.query(self.model).filter(self.model.id.in_(ids)).all()
+            
+            if not products:
+                raise ValueError(f"No products found with IDs: {', '.join(map(str, ids))}")
+            
+            return products
+        except Exception as e:
+            raise ValueError(f"An error occurred: {str(e)}")
     
     def get_by_id(self, id: int, fields: List[str] = None):
         query = self.db.query(self.model)
@@ -106,7 +136,6 @@ class BaseRepository:
 
         return query.filter(self.model.id == id).first()
 
-
     def delete(self, ids: List[int]):
         objs = self.get_by_ids(ids)
         if objs:
@@ -116,17 +145,27 @@ class BaseRepository:
             return True
         return False
 
-    def update(self, ids: List[int], objs_in: List[Dict[str, Any]]):
+    def update(self, objs_in: List[Dict[str, Any]]):
         updated_objs = []
-        for id, obj_in in zip(ids, objs_in):
-            obj = self.get_by_id(id)
+        
+        for obj_in in objs_in:
+            product_id = obj_in.get('id')
+            if not product_id:
+                continue
+            
+            obj = self.get_by_id(product_id)
             if obj:
                 for key, value in obj_in.items():
-                    setattr(obj, key, value)
-                self.db.flush()  # Prepares the updates
+                    if key != 'id':
+                        setattr(obj, key, value)
+                
+                self.db.flush()
                 self.db.refresh(obj)
+                
                 updated_objs.append(obj)
+        
         return updated_objs if updated_objs else None
+
 
     def execute_raw_query(self, query: str, params: Dict[str, Any] = None):
         result = self.db.execute(query, params)
@@ -142,26 +181,32 @@ class BaseRepository:
         """
         return self.db.begin()
 
-    def commit(self):
+    def commit(self, trx: SessionTransaction):
         """
         Commit the current transaction.
         """
         try:
-            self.db.commit()
+            trx.commit()
+            trx.close()
+            self.db.close()
         except Exception as e:
-            self.rollback()
+            trx.rollback()
+            trx.close()
+            self.db.close()
             raise e
+    
+    def close(self):
+        """
+        Close the current transaction.
+        """
+        self.db.close()
 
-    def rollback(self):
+    def rollback(self, trx: SessionTransaction):
         """
         Rollback the current transaction.
         """
-        self.db.rollback()
-
-    def close(self):
-        """
-        Close the current database session.
-        """
+        trx.rollback()
+        trx.close()
         self.db.close()
 
     def count(self):

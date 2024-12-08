@@ -9,7 +9,7 @@ product_service = ProductService()
 def create_products():
     products_data = request.json
     products = product_service.create_products(products_data)
-    return jsonify([product.__dict__ for product in products]), 201
+    return jsonify(products), products["status_code"]
 
 @product_router.route("/products", methods=["GET"])
 def get_all_products():
@@ -27,18 +27,17 @@ def get_product(product_id):
     product = product_service.get_product_by_id(product_id)
     return jsonify(product), product["status_code"]
 
-@product_router.route("/products", methods=["PUT"])
+@product_router.route("/products", methods=["PATCH"])
 def update_products():
     product_data = request.json
-    product_ids = request.json.get("ids", [])
-    updated = product_service.update_products(product_ids, product_data)
+    updated = product_service.update_products(product_data)
     if updated:
-        return jsonify([product.__dict__ for product in updated])
+        return jsonify([updated]), updated["status_code"]
     return jsonify({"message": "Products not found"}), 404
 
 @product_router.route("/products", methods=["DELETE"])
 def delete_products():
-    product_ids = request.json.get("ids", [])
+    product_ids = request.json
     deleted = product_service.delete_products(product_ids)
     if deleted:
         return jsonify({"message": "Products deleted"})
