@@ -5,6 +5,7 @@ from domain.sqlAlchemy.configuration import SessionLocal
 from domain.sqlAlchemy.model.user_model import User
 from utils import utils
 
+
 jwt = JWTManager()
 
 def login_user(email: str, password: str):

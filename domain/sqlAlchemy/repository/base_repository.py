@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from typing import List, Dict, Any
 
 class BaseRepository:
@@ -16,8 +17,78 @@ class BaseRepository:
             self.db.refresh(obj)
         return objs_in
 
-    def get_all(self):
-        return self.db.query(self.model).all()
+
+    def get_all(self, page: int = 1, limit: int = 10, filters: Dict[str, Any] = None, or_filters: Dict[str, Any] = None, columns: list = None):
+        """
+        Get all records with pagination, filtering, and specific column selection support.
+        :param page: Page number (default is 1).
+        :param limit: Number of records per page (default is 10).
+        :param filters: A dictionary of filters (optional, applies AND conditions).
+        :param or_filters: A dictionary of OR filters (optional).
+        :param columns: List of columns to select (optional).
+        :return: Paginated list of records.
+        """
+        query = self.db.query(self.model)
+
+        # Select specific columns if 'columns' is provided
+        if columns:
+            query = query.with_entities(*[getattr(self.model, col) for col in columns])
+
+        if filters:
+            for field, value in filters.items():
+                # Filter for range (BETWEEN)
+                if isinstance(value, dict) and 'min' in value and 'max' in value:
+                    query = query.filter(getattr(self.model, field).between(value['min'], value['max']))
+                # Filter for "greater than" or "less than" comparisons
+                elif isinstance(value, tuple) and len(value) == 2:
+                    operator, val = value
+                    if operator == ">":
+                        query = query.filter(getattr(self.model, field) > val)
+                    elif operator == "<":
+                        query = query.filter(getattr(self.model, field) < val)
+                    elif operator == "=":
+                        query = query.filter(getattr(self.model, field) == val)
+                # Filter for string matching using LIKE (case-insensitive)
+                elif isinstance(value, str) and "%" in value:
+                    query = query.filter(getattr(self.model, field).ilike(value))  # Case-insensitive LIKE
+                # Filter for exact match
+                else:
+                    query = query.filter(getattr(self.model, field) == value)
+
+        # Apply OR filters (if any)
+        if or_filters:
+            or_conditions = []
+            for field, value in or_filters.items():
+                # Filter for range (BETWEEN)
+                if isinstance(value, dict) and 'min' in value and 'max' in value:
+                    or_conditions.append(getattr(self.model, field).between(value['min'], value['max']))
+                # Filter for "greater than" or "less than" comparisons
+                elif isinstance(value, tuple) and len(value) == 2:
+                    operator, val = value
+                    if operator == ">":
+                        or_conditions.append(getattr(self.model, field) > val)
+                    elif operator == "<":
+                        or_conditions.append(getattr(self.model, field) < val)
+                    elif operator == "=":
+                        or_conditions.append(getattr(self.model, field) == val)
+                # Filter for string matching using LIKE (case-insensitive)
+                elif isinstance(value, str) and "%" in value:
+                    or_conditions.append(getattr(self.model, field).ilike(value))  # Case-insensitive LIKE
+                # Filter for exact match
+                else:
+                    or_conditions.append(getattr(self.model, field) == value)
+
+            # Apply the OR condition to the query
+            if or_conditions:
+                query = query.filter(or_(*or_conditions))
+
+        offset = (page - 1) * limit
+
+        records = query.offset(offset).limit(limit).all()
+
+        return records
+
+
 
     def get_by_ids(self, ids: list):
         return self.db.query(self.model).filter(self.model.id.in_(ids)).all()
@@ -86,3 +157,9 @@ class BaseRepository:
         Close the current database session.
         """
         self.db.close()
+
+    def count(self):
+        """
+        Get the total count of rows in the table.
+        """
+        return self.db.query(self.model).count()
