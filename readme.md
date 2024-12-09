@@ -1,4 +1,4 @@
-# Shopee Integration
+# Shop Management
 
 ## Struktur Folder
 ### updated soon>
