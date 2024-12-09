@@ -214,3 +214,76 @@ class BaseRepository:
         Get the total count of rows in the table.
         """
         return self.db.query(self.model).count()
+
+    def find_by(self, filters: Dict[str, Any] = None, or_filters: Dict[str, Any] = None, columns: List[str] = None):
+        """
+        Finds records based on provided filters (AND and OR conditions).
+        Supports custom column selection.
+        :param filters: A dictionary of filters (applies AND conditions).
+        :param or_filters: A dictionary of OR filters (optional).
+        :param columns: A list of column names to select (optional).
+        :return: List of records that match the filters.
+        """
+        # Start the query
+        query = self.db.query(self.model)
+        
+        # Select specific columns if 'columns' is provided
+        if columns:
+            # Validate columns exist in the model
+            valid_columns = [getattr(self.model, col) for col in columns if hasattr(self.model, col)]
+            if not valid_columns:
+                raise ValueError(f"Invalid columns specified: {columns}")
+            query = query.with_entities(*valid_columns)
+
+        # Apply AND filters
+        if filters:
+            for field, value in filters.items():
+                # Handle range filter (BETWEEN)
+                if isinstance(value, dict) and 'min' in value and 'max' in value:
+                    query = query.filter(getattr(self.model, field).between(value['min'], value['max']))
+                # Handle "greater than" or "less than" comparisons
+                elif isinstance(value, tuple) and len(value) == 2:
+                    operator, val = value
+                    if operator == ">":
+                        query = query.filter(getattr(self.model, field) > val)
+                    elif operator == "<":
+                        query = query.filter(getattr(self.model, field) < val)
+                    elif operator == "=":
+                        query = query.filter(getattr(self.model, field) == val)
+                # Handle string matching with LIKE (case-insensitive)
+                elif isinstance(value, str) and "%" in value:
+                    query = query.filter(getattr(self.model, field).ilike(value))
+                # Exact match
+                else:
+                    query = query.filter(getattr(self.model, field) == value)
+
+        # Apply OR filters
+        if or_filters:
+            or_conditions = []
+            for field, value in or_filters.items():
+                # Handle range filter (BETWEEN)
+                if isinstance(value, dict) and 'min' in value and 'max' in value:
+                    or_conditions.append(getattr(self.model, field).between(value['min'], value['max']))
+                # Handle "greater than" or "less than" comparisons
+                elif isinstance(value, tuple) and len(value) == 2:
+                    operator, val = value
+                    if operator == ">":
+                        or_conditions.append(getattr(self.model, field) > val)
+                    elif operator == "<":
+                        or_conditions.append(getattr(self.model, field) < val)
+                    elif operator == "=":
+                        or_conditions.append(getattr(self.model, field) == val)
+                # Handle string matching with LIKE (case-insensitive)
+                elif isinstance(value, str) and "%" in value:
+                    or_conditions.append(getattr(self.model, field).ilike(value))
+                # Exact match
+                else:
+                    or_conditions.append(getattr(self.model, field) == value)
+
+            # Apply OR condition to the query
+            if or_conditions:
+                query = query.filter(or_(*or_conditions))
+
+        # Return all matched records
+        return query.all()
+
