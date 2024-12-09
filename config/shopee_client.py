@@ -7,10 +7,10 @@ from config.database import RedisKey
 
 
 class ShopeeClientConfig:
-    BASE_URL = "https://partner.shopeemobile.com/api/v2"
-    PARTNER_ID = os.getenv("SHOPEE_PARTNER_ID", "your_partner_id")
-    PARTNER_KEY = os.getenv("SHOPEE_PARTNER_KEY", "your_partner_key")
-    SHOP_ID = os.getenv("SHOPEE_SHOP_ID", "your_shop_id")
+    BASE_URL = os.getenv("SHOPEE_BASE_URL", "https://partner.test-stable.shopeemobile.com")
+    PARTNER_ID = os.getenv("SHOPEE_PARTNER_ID", "1")
+    PARTNER_KEY = os.getenv("SHOPEE_PARTNER_KEY", "test....")
+    SHOP_ID = os.getenv("SHOPEE_SHOP_ID", "129772")
 
     @staticmethod
     def get_timestamp():
@@ -20,25 +20,30 @@ class ShopeeClientConfig:
         """
         return int(time.time())
 
-    @staticmethod
-    def generate_signature(api_path, timestamp, params, custom_message=""):
-        """
-        Generate HMAC-SHA256 signature for Shopee API request.
-
-        :param api_path: The API endpoint path
-        :param params: Dictionary of parameters to be included in the request
-        :param custom_message: Optional custom message to use in signature generation
-        :return: HMAC-SHA256 signature
-        """
-        message = f"{ShopeeClientConfig.PARTNER_ID}{api_path}{params}{timestamp}{ShopeeClientConfig.get_access_token()}{ShopeeClientConfig.SHOP_ID}{ShopeeClientConfig.PARTNER_KEY}"
-
-        if custom_message:
-            message = custom_message
-
-        signature = hmac.new(ShopeeClientConfig.PARTNER_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
-
-        return signature
-    
     def get_access_token():
         return RedisClient.redis_client.get(RedisKey.SHOPEE_ACCESS_TOKEN_KEY)
-  
+
+    @staticmethod
+    def generate_signature(path: str, timestamp: int, access_token: str):
+        """
+        Generate an HMAC-SHA256 signature for Shopee API authentication.
+
+        This method generates a signature required for authenticating requests 
+        to the Shopee API. The signature is generated using the combination of 
+        partner ID, API path, timestamp, access token, and shop ID, along with 
+        the partner key.
+
+        Args:
+            path (str): The API endpoint path (e.g., "/api/v2/shop/auth_partner").
+            timestamp (int): The Unix timestamp (in seconds) for the request.
+            access_token (str): The access token associated with the shop.
+
+        Returns:
+            - str: The generated signature (HMAC-SHA256 hash).
+        """
+        timestamp = int(time.time())
+
+        base_string = f"{ShopeeClientConfig.PARTNER_ID}{path}{timestamp}{access_token}{ShopeeClientConfig.SHOP_ID}".encode()
+        sign = hmac.new(ShopeeClientConfig.PARTNER_KEY.encode(), base_string, hashlib.sha256).hexdigest()
+
+        return sign
